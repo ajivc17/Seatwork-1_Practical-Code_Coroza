@@ -1,37 +1,46 @@
 <?php
 session_start();
 
-$todoList = array();
-
-if (isset($_SESSION["todoList"])) {
-    $todoList = $_SESSION["todoList"];
-}
+$todoList = isset($_SESSION["todoList"]) ? $_SESSION["todoList"] : array();
 
 function appendData($data, &$todoList) {
-    $todoList[] = $data;
+    $todoList[] = ['task' => $data, 'completed' => false];
 }
 
 function deleteData($toDelete, &$todoList) {
-    foreach ($todoList as $index => $taskName) {
-        if ($taskName === $toDelete) {
-            unset( $todoList[$index] );
+    foreach ($todoList as $index => $task) {
+        if ($task['task'] === $toDelete) {
+            unset($todoList[$index]);
+            break;
+        }
+    }
+}
+
+function toggleCompletion($taskName, &$todoList) {
+    foreach ($todoList as $index => $task) {
+        if ($task['task'] === $taskName) {
+            $todoList[$index]['completed'] = !$task['completed'];
             break;
         }
     }
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (empty( $_POST["task"] )) {
+    if (empty($_POST["task"])) {
         echo '<script>alert("Error: there is no data to add in array")</script>';
-        exit;
+    } else {
+        appendData($_POST["task"], $todoList);
+        $_SESSION["todoList"] = $todoList;
     }
-
-    appendData($_POST["task"], $todoList);
-    $_SESSION["todoList"] = $todoList;
 }
 
 if (isset($_GET['delete']) && isset($_GET['task'])) {
     deleteData($_GET['task'], $todoList);
+    $_SESSION["todoList"] = $todoList;
+}
+
+if (isset($_GET['toggle']) && isset($_GET['task'])) {
+    toggleCompletion($_GET['task'], $todoList);
     $_SESSION["todoList"] = $todoList;
 }
 ?>
@@ -41,8 +50,7 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>To-Do List</title>
-    <!-- Bootstrap CSS -->
+    <title>Simple To-Do List</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -95,15 +103,22 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
             justify-content: space-between;
         }
 
-        .delete-btn {
+        .delete-btn, .toggle-btn {
             background-color: transparent;
             border: none;
-            color: #dc3545;
             font-size: 16px;
             cursor: pointer;
         }
 
-        .delete-btn:hover {
+        .delete-btn {
+            color: #dc3545;
+        }
+
+        .toggle-btn {
+            color: #28a745;
+        }
+
+        .delete-btn:hover, .toggle-btn:hover {
             text-decoration: underline;
         }
 
@@ -113,6 +128,11 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
 
         .custom-control {
             margin-right: 10px;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: gray;
         }
     </style>
 </head>
@@ -138,10 +158,13 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
                 foreach ($todoList as $task) {
                     echo '<label class="list-group-item d-flex justify-content-between align-items-center">
                             <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="task-' . htmlspecialchars($task) . '">
-                                <label class="custom-control-label" for="task-' . htmlspecialchars($task) . '">' . htmlspecialchars($task) . '</label>
+                                <input type="checkbox" class="custom-control-input" id="task-' . htmlspecialchars($task['task']) . '" ' . ($task['completed'] ? 'checked' : '') . '>
+                                <label class="custom-control-label ' . ($task['completed'] ? 'completed' : '') . '" for="task-' . htmlspecialchars($task['task']) . '">' . htmlspecialchars($task['task']) . '</label>
                             </div>
-                            <span class="delete-btn" data-task="' . htmlspecialchars($task) . '">Delete</span>
+                            <div>
+                                <span class="toggle-btn" data-task="' . htmlspecialchars($task['task']) . '">Toggle</span>
+                                <span class="delete-btn" data-task="' . htmlspecialchars($task['task']) . '">Delete</span>
+                            </div>
                           </label>';
                 }
             } else {
@@ -152,7 +175,6 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
     </div>
 </div>
 
-<!-- Bootstrap JS and dependencies -->
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -163,6 +185,13 @@ if (isset($_GET['delete']) && isset($_GET['task'])) {
             if (confirm('Are you sure you want to delete the task: ' + task + '?')) {
                 window.location.href = 'index.php?delete=true&task=' + encodeURIComponent(task);
             }
+        });
+    });
+
+    document.querySelectorAll('.toggle-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const task = this.getAttribute('data-task');
+            window.location.href = 'index.php?toggle=true&task=' + encodeURIComponent(task);
         });
     });
 </script>
